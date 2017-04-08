@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
 from datetime import datetime
-from Crypto.Cipher import AES
+#from Crypto.Cipher import AES
+import pyaes
 import time
 import random
 import socket
@@ -176,9 +177,18 @@ class device:
 
     enc_payload = response[0x38:]
 
-    aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
-    payload = aes.decrypt(bytes(enc_payload))
-
+#    aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
+#    payload = aes.decrypt(bytes(enc_payload))
+    aes = pyaes.AESModeOfOperationCBC(bytes(self.key), iv = bytes(self.iv))
+    length = len(enc_payload)
+    enc_payload += bytearray(16) #always add padding and strip at the end
+    payload = bytearray();
+    while len(enc_payload) >= 16:
+        payload += aes.decrypt(bytes(enc_payload[:16]))
+        enc_payload = enc_payload[16:]
+    payload = payload[:length]
+#
+#	
     if not payload:
      return False
 
@@ -225,9 +235,16 @@ class device:
       checksum += payload[i]
       checksum = checksum & 0xffff
 
-    aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
-    payload = aes.encrypt(bytes(payload))
-
+#    aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
+#    payload = aes.encrypt(bytes(payload))
+    aes = pyaes.AESModeOfOperationCBC(bytes(self.key), iv = bytes(self.iv))
+    encrypter = pyaes.Encrypter(aes)
+    length = len(payload)
+    payload = encrypter.feed(bytes(payload))
+    payload += encrypter.feed()
+    payload = payload[:length]
+#
+#		
     packet[0x34] = checksum & 0xff
     packet[0x35] = checksum >> 8
 
@@ -286,8 +303,8 @@ class mp1(device):
     sid_mask = 0x01 << (sid - 1)
     return self.set_power_mask(sid_mask, state)
 
-  def check_power_raw(self):
-    """Returns the power state of the smart power strip in raw format."""
+  def check_power(self):
+    """Returns the power state of the smart power strip."""
     packet = bytearray(16)
     packet[0x00] = 0x0a
     packet[0x02] = 0xa5
@@ -301,23 +318,29 @@ class mp1(device):
     response = self.send_packet(0x6a, packet)
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
-      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
-      payload = aes.decrypt(bytes(response[0x38:]))
+#      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
+#      payload = aes.decrypt(bytes(response[0x38:]))
+      enc_payload = response[0x38:]
+      aes = pyaes.AESModeOfOperationCBC(bytes(self.key), iv = bytes(self.iv))
+      length = len(enc_payload)
+      enc_payload += bytearray(16) #always add padding and strip at the end
+      payload = bytearray();
+      while len(enc_payload) >= 16:
+          payload += aes.decrypt(bytes(enc_payload[:16]))
+          enc_payload = enc_payload[16:]
+      payload = payload[:length]
+#
+#
       if type(payload[0x4]) == int:
         state = payload[0x0e]
       else:
         state = ord(payload[0x0e])
-      return state
-
-  def check_power(self):
-    """Returns the power state of the smart power strip."""
-    state = self.check_power_raw()
-    data = {}
-    data['s1'] = bool(state & 0x01)
-    data['s2'] = bool(state & 0x02)
-    data['s3'] = bool(state & 0x04)
-    data['s4'] = bool(state & 0x08)
-    return data
+      data = {}
+      data['s1'] = bool(state & 0x01)
+      data['s2'] = bool(state & 0x02)
+      data['s3'] = bool(state & 0x04)
+      data['s4'] = bool(state & 0x08)
+      return data
 
 
 class sp1(device):
@@ -350,8 +373,19 @@ class sp2(device):
     response = self.send_packet(0x6a, packet)
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
-      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
-      payload = aes.decrypt(bytes(response[0x38:]))
+#      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
+#      payload = aes.decrypt(bytes(response[0x38:]))
+      enc_payload = response[0x38:]
+      aes = pyaes.AESModeOfOperationCBC(bytes(self.key), iv = bytes(self.iv))
+      length = len(enc_payload)
+      enc_payload += bytearray(16) #always add padding and strip at the end
+      payload = bytearray();
+      while len(enc_payload) >= 16:
+         payload += aes.decrypt(bytes(enc_payload[:16]))
+         enc_payload = enc_payload[16:]
+      payload = payload[:length]
+#
+#	  
       return bool(payload[0x4])
 
 class a1(device):
@@ -366,8 +400,19 @@ class a1(device):
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
       data = {}
-      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
-      payload = aes.decrypt(bytes(response[0x38:]))
+#      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
+#      payload = aes.decrypt(bytes(response[0x38:]))
+      enc_payload = response[0x38:]
+      aes = pyaes.AESModeOfOperationCBC(bytes(self.key), iv = bytes(self.iv))
+      length = len(enc_payload)
+      enc_payload += bytearray(16) #always add padding and strip at the end
+      payload = bytearray();
+      while len(enc_payload) >= 16:
+         payload += aes.decrypt(bytes(enc_payload[:16]))
+         enc_payload = enc_payload[16:]
+      payload = payload[:length]
+#
+#
       if type(payload[0x4]) == int:
         data['temperature'] = (payload[0x4] * 10 + payload[0x5]) / 10.0
         data['humidity'] = (payload[0x6] * 10 + payload[0x7]) / 10.0
@@ -417,8 +462,20 @@ class a1(device):
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
       data = {}
-      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
-      payload = aes.decrypt(bytes(response[0x38:]))
+#      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
+#      payload = aes.decrypt(bytes(response[0x38:]))
+      enc_payload = response[0x38:]
+      aes = pyaes.AESModeOfOperationCBC(bytes(self.key), iv = bytes(self.iv))
+      length = len(enc_payload)
+      enc_payload += bytearray(16) #always add padding and strip at the end
+      payload = bytearray();
+      while len(enc_payload) >= 16:
+          payload += aes.decrypt(bytes(enc_payload[:16]))
+          enc_payload = enc_payload[16:]
+      payload = payload[:length]
+#
+#
+
       if type(payload[0x4]) == int:
         data['temperature'] = (payload[0x4] * 10 + payload[0x5]) / 10.0
         data['humidity'] = (payload[0x6] * 10 + payload[0x7]) / 10.0
@@ -445,8 +502,20 @@ class rm(device):
     response = self.send_packet(0x6a, packet)
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
-      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
-      payload = aes.decrypt(bytes(response[0x38:]))
+#      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
+#      payload = aes.decrypt(bytes(response[0x38:]))
+      enc_payload = response[0x38:]
+      aes = pyaes.AESModeOfOperationCBC(bytes(self.key), iv = bytes(self.iv))
+      length = len(enc_payload)
+      enc_payload += bytearray(16) #always add padding and strip at the end
+      payload = bytearray();
+      while len(enc_payload) >= 16:
+          payload += aes.decrypt(bytes(enc_payload[:16]))
+          enc_payload = enc_payload[16:]
+      payload = payload[:length]
+#
+#
+
       return payload[0x04:]
 
   def send_data(self, data):
@@ -465,8 +534,20 @@ class rm(device):
     response = self.send_packet(0x6a, packet)
     err = response[0x22] | (response[0x23] << 8)
     if err == 0:
-      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
-      payload = aes.decrypt(bytes(response[0x38:]))
+#      aes = AES.new(bytes(self.key), AES.MODE_CBC, bytes(self.iv))
+#      payload = aes.decrypt(bytes(response[0x38:]))
+      enc_payload = response[0x38:]
+      aes = pyaes.AESModeOfOperationCBC(bytes(self.key), iv = bytes(self.iv))
+      length = len(enc_payload)
+      enc_payload += bytearray(16) #always add padding and strip at the end
+      payload = bytearray();
+      while len(enc_payload) >= 16:
+          payload += aes.decrypt(bytes(enc_payload[:16]))
+          enc_payload = enc_payload[16:]
+      payload = payload[:length]
+#
+#
+
       if type(payload[0x4]) == int:
         temp = (payload[0x4] * 10 + payload[0x5]) / 10.0
       else:
