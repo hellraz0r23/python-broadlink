@@ -1,1 +1,1 @@
-pycrypto==2.6.1
+pyaes==1.6.0
