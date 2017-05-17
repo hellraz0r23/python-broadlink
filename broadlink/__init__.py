@@ -189,6 +189,7 @@ class device:
     payload = payload[:length]
 #
 #	
+
     if not payload:
      return False
 
@@ -245,6 +246,7 @@ class device:
     payload = payload[:length]
 #
 #		
+
     packet[0x34] = checksum & 0xff
     packet[0x35] = checksum >> 8
 
@@ -303,7 +305,7 @@ class mp1(device):
     sid_mask = 0x01 << (sid - 1)
     return self.set_power_mask(sid_mask, state)
 
-  def check_power(self):
+  def check_power_raw(self):
     """Returns the power state of the smart power strip."""
     packet = bytearray(16)
     packet[0x00] = 0x0a
@@ -335,12 +337,17 @@ class mp1(device):
         state = payload[0x0e]
       else:
         state = ord(payload[0x0e])
-      data = {}
-      data['s1'] = bool(state & 0x01)
-      data['s2'] = bool(state & 0x02)
-      data['s3'] = bool(state & 0x04)
-      data['s4'] = bool(state & 0x08)
-      return data
+	  return state
+
+  def check_power(self):
+    """Returns the power state of the smart power strip."""
+    state = self.check_power_raw()
+    data = {}
+    data['s1'] = bool(state & 0x01)
+    data['s2'] = bool(state & 0x02)
+    data['s3'] = bool(state & 0x04)
+    data['s4'] = bool(state & 0x08)
+    return data
 
 
 class sp1(device):
@@ -386,7 +393,11 @@ class sp2(device):
       payload = payload[:length]
 #
 #	  
-      return bool(payload[0x4])
+      if type(payload[0x4]) == int:
+        state = bool(payload[0x4])
+      else:
+        state = bool(ord(payload[0x4]))
+      return state
 
 class a1(device):
   def __init__ (self, host, mac):
