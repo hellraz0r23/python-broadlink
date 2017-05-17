@@ -189,7 +189,6 @@ class device:
     payload = payload[:length]
 #
 #	
-
     if not payload:
      return False
 
@@ -246,7 +245,6 @@ class device:
     payload = payload[:length]
 #
 #		
-
     packet[0x34] = checksum & 0xff
     packet[0x35] = checksum >> 8
 
@@ -337,8 +335,9 @@ class mp1(device):
         state = payload[0x0e]
       else:
         state = ord(payload[0x0e])
-	  return state
-
+		
+      return state
+	  
   def check_power(self):
     """Returns the power state of the smart power strip."""
     state = self.check_power_raw()
